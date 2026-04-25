@@ -1,0 +1,17 @@
+{
+  "name": "solos-phase4",
+  "version": "1.0.0",
+  "description": "SolOS Phase 4 - Autonomous cycle engine with Telegram interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "node-fetch": "^2.7.0",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
