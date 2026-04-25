@@ -17,6 +17,9 @@ if(!BOT_TOKEN || !CHAT_ID) {
   process.exit(1);
 }
 
+const bot = new TelegramBot(BOT_TOKEN, {
+  polling: true
+});
 // ── STATE FILE (persists across restarts) ────────────────────────────────────
 const STATE_FILE = path.join(__dirname, 'state.json');
 
