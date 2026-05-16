@@ -844,11 +844,13 @@ bot.on('callback_query', async(query)=>{
 });
 
 // ── COMMANDS ──────────────────────────────────────────────────────────────────
-bot.onText(/\/start/,async()=>await send(
-  `👋 *SolOS + InvestOS Bridge*\n\nRegimes: STRESS / NEUTRAL_DEGRADED / NEUTRAL / EXPANSION / EXPANSION_CONFIRMED\n\n/status /run /position /winrate /shadowreport /pause /resume /balance /setup`
-));
+bot.onText(/\/start/,async()=>{
+  console.log('[CMD] /start received');
+  await send(`👋 *SolOS Active*\n\n/ping /status /run /position /winrate /shadowreport /pause /resume /balance /setup`);
+});
 
 bot.onText(/\/status/,async()=>{
+  console.log('[CMD] /status received');
   const bal=WALLET_ADDR?await fetchWalletBalance(WALLET_ADDR):null;
   const inv=await fetchInvestOSMacro();
   const pos=state.openPosition;
@@ -910,6 +912,11 @@ bot.onText(/\/position/,async()=>{
   await send(`📈 *Open Position*\n\n${p.token} (Tier ${p.tier})\nRegime at entry: ${p.regime}\nEntry: $${p.entryPrice.toFixed(6)}\nStop: $${p.stopPrice.toFixed(6)}\nTarget: $${p.targetPrice.toFixed(6)}\nExploration trade: ${p.explorationTrade?'YES':'no'}`);
 });
 
+bot.onText(/\/ping/,async()=>{
+  console.log('[CMD] /ping received');
+  await send('🏓 pong — bot is alive and receiving commands');
+});
+
 bot.onText(/\/pause/,async()=>{state.paused=true;saveState(state);await send('⏸ Paused.');});
 bot.onText(/\/resume/,async()=>{state.paused=false;saveState(state);await send('▶️ Resumed.');});
 
@@ -919,6 +926,7 @@ bot.onText(/\/balance/,async()=>{
 });
 
 bot.onText(/\/setup/,async()=>{
+  console.log('[CMD] /setup received');
   if(!JSONBIN_KEY){await send('❌ Add JSONBIN_KEY to Render env.');return;}
   if(JSONBIN_BIN){await send(`✅ JSONBin configured: ${JSONBIN_BIN}`);return;}
   try{
@@ -967,18 +975,42 @@ const server=http.createServer(async(req,res)=>{
 
 server.listen(PORT,async()=>{
   console.log(`SolOS Phase 4 listening on port ${PORT}`);
+
   if(RENDER_URL){
     const webhookUrl=`${RENDER_URL}${WEBHOOK_PATH}`;
-    try{await bot.setWebHook(webhookUrl);console.log('Webhook set: '+RENDER_URL+'/webhook/***MASKED***');}
-    catch(e){console.log('Webhook failed:',e.message);}
+    try{
+      // First delete any existing webhook
+      await bot.deleteWebHook();
+      console.log('Old webhook cleared');
+      // Set new webhook
+      const result = await bot.setWebHook(webhookUrl);
+      console.log('Webhook set result:', result);
+      console.log('Webhook URL registered: '+RENDER_URL+'/webhook/***MASKED***');
+      // Verify it was set correctly
+      const info = await bot.getWebHookInfo();
+      console.log('Webhook info: url='+(info.url?info.url.replace(BOT_TOKEN,'***'):'none')+
+        ' pending='+info.pending_update_count+' error='+(info.last_error_message||'none'));
+    } catch(e){
+      console.log('Webhook setup failed:', e.message);
+      console.log('Falling back to polling mode...');
+      try {
+        bot.startPolling({ restart:false });
+        console.log('Polling mode active');
+      } catch(pe) { console.log('Polling also failed:', pe.message); }
+    }
   } else {
-    console.log('No RENDER_EXTERNAL_URL — add to Render env vars');
+    console.log('No RENDER_EXTERNAL_URL — falling back to polling');
+    try {
+      await bot.deleteWebHook();
+      bot.startPolling({ restart:false });
+      console.log('Polling mode active');
+    } catch(e) { console.log('Polling failed:', e.message); }
   }
+
   setTimeout(async()=>{
-    await send(`🚀 *SolOS Combined Build 1 Active*\nWebhook mode · InvestOS bridge · NEUTRAL\\_DEGRADED regime\nWallet: ${WALLET_ADDR?WALLET_ADDR.slice(0,6)+'...'+WALLET_ADDR.slice(-4):'not set'}\n\n/status to check`);
-    // Random delay 15-45s before first cycle to avoid cold-start API storms
+    await send(`🚀 *SolOS Active*\nWallet: ${WALLET_ADDR?WALLET_ADDR.slice(0,6)+'...'+WALLET_ADDR.slice(-4):'not set'}\n\n/status to check`);
     const delay = 15000 + Math.random()*30000;
     console.log(`First cycle in ${Math.round(delay/1000)}s`);
     setTimeout(()=>executeCycle(false), delay);
-  },2000);
+  },3000);
 });
